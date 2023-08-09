@@ -22,7 +22,7 @@ REPORT_REGION_EXIT_TERRAIN_TOKEN = 'terrain'
 REPORT_REGION_EXIT_COORDS_TOKEN = 'location'
 
 MAX_MAP_LEVEL = 2
-MAP_HEX_SIZE = 25
+MAP_HEXSIDE_SIZE = 25
 USE_ONLY_SEEN_MAP_COLOUR = False
 
 
@@ -457,16 +457,14 @@ class AtlantisManager:
         map_x_scrollbar.pack(side=BOTTOM, fill=X)
         map_y_scrollbar.pack(side=RIGHT, fill=Y)
         self.win_map_canvas.pack(side=TOP, fill=BOTH, expand=True)
-
-        # TODO: make canvas clickable with reaction to clicked
-        #       on province.
+        self.win_map_canvas.bind("<Button-1>", self.on_click_map_region)
 
     def update_province_map(self, level):
         provinces = self.get_all_provinces(level)
         max_col = get_max_col(provinces)
         max_row = get_max_row(provinces)
         self.render_map(max_col * 5, max_row * 5)
-        self.initialise_map_grid(max_col, max_row, MAP_HEX_SIZE, level)
+        self.initialise_map_grid(max_col, max_row, MAP_HEXSIDE_SIZE, level)
 
         # TODO: put colour into config file
         known_terrains = {
@@ -492,6 +490,10 @@ class AtlantisManager:
             current_terrain = first_province_data[REPORT_REGION_TERRAIN_TOKEN]
             if current_terrain in known_terrains.keys():
                 self.win_map_canvas.itemconfigure(tags, fill=known_terrains[current_terrain][0])
+                for province_hex in self.province_hexagons:
+                    if province_hex.tags == tags:
+                        province_hex.report = first_province_data
+                        break
             else:
                 logging.info(f'unknown terrain type "{current_terrain}"')
                 self.win_map_canvas.itemconfigure(tags, fill="#FFFFFF")
@@ -527,17 +529,14 @@ class AtlantisManager:
                 logging.info(f'unknown terrain type "{only_seen_terrain}"')
                 self.win_map_canvas.itemconfigure(only_seen_tags, fill="#7C7C7C")
 
-
-
-
     def initialise_map_grid(self, max_column, max_row, hex_side_size, level):
         self.province_hexagons = []
 
         for column_index in range(max_column + 1):
             if column_index % 2 == 1:
-                offset = hex_side_size * sqrt(3) / 2
+                odd_column_offset = hex_side_size * sqrt(3) / 2
             else:
-                offset = 0
+                odd_column_offset = 0
 
             for row_index in range(max_row + 1):
 
@@ -546,22 +545,53 @@ class AtlantisManager:
                 else:
                     translated_row_index = row_index * 2
 
-                # coords = f'{column_index}, {translated_row_index}, {level}'
+                province_hex_center_x = column_index * (hex_side_size * 1.5)
+                province_hex_center_y = (row_index * (hex_side_size * sqrt(3))) + odd_column_offset
                 tags = f'{column_index}_{translated_row_index}_{level}'
                 province_hex = ProvinceHexagon(self.win_map_canvas,
-                                               column_index * (hex_side_size * 1.5),
-                                               (row_index * (hex_side_size * sqrt(3))) + offset,
+                                               province_hex_center_x,
+                                               province_hex_center_y,
                                                hex_side_size,
                                                "white",
                                                tags)
 
                 self.province_hexagons.append(province_hex)
-
                 """
-                self.win_map_canvas.create_text(column_index * (hex_size * 1.5) + (hex_size / 2),
-                                                (row_index * (hex_size * sqrt(3))) + offset + (hex_size / 2),
-                                                text=coords)
-                                                """
+                self.win_map_canvas.create_rectangle(
+                province_hex_center_x - 1,
+                province_hex_center_y - 1,
+                province_hex_center_x + 1,
+                province_hex_center_y + 1,
+                fill="red")
+
+                self.win_map_canvas.create_text(province_hex_center_x - 10,
+                                                province_hex_center_y + 15,
+                                                text=f'{int(province_hex_center_x)},{int(province_hex_center_y)}',
+                                                font=('Helvetica', '8', 'bold'))
+                """
+
+    def on_click_map_region(self, event):
+        canvas_x = self.win_map_canvas.canvasx(event.x)
+        canvas_y = self.win_map_canvas.canvasy(event.y)
+
+        smallest_distance = MAP_HEXSIDE_SIZE
+        nearest_hex = None
+
+        for province_hex in self.province_hexagons:
+            delta_x_sq = (province_hex.center_x - canvas_x)**2
+            delta_y_sq = (province_hex.center_y - canvas_y)**2
+            distance = sqrt(delta_x_sq+delta_y_sq)
+            if smallest_distance == distance:
+                return
+            elif smallest_distance > distance:
+                smallest_distance = distance
+                nearest_hex = province_hex
+
+        self.win_region_map_text_box.delete("0.0", END)
+        self.win_region_map_text_box.insert(END, f'canvas click: {canvas_x},{canvas_y}\n')
+
+        description = nearest_hex.tags + "\n" + str(nearest_hex.report)
+        self.win_region_map_text_box.insert(END, description)
 
     def display_player_info(self):
         pass
