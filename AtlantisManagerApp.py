@@ -16,8 +16,14 @@ DATA_TOKEN_PLAYER_NUMBER = 'player_number'
 DATA_TOKEN_PLAYER_FACTION_NAME = 'player_faction_name'
 REPORT_FACTION_TOKEN = 'faction'
 REPORT_REGIONS_TOKEN = 'regions'
+REPORT_REGION_TERRAIN_TOKEN = 'terrain'
+REPORT_REGION_EXITS_TOKEN = 'exits'
+REPORT_REGION_EXIT_TERRAIN_TOKEN = 'terrain'
+REPORT_REGION_EXIT_COORDS_TOKEN = 'location'
+
 MAX_MAP_LEVEL = 2
 MAP_HEX_SIZE = 25
+USE_ONLY_SEEN_MAP_COLOUR = False
 
 
 def get_max_col(provinces):
@@ -462,15 +468,67 @@ class AtlantisManager:
         self.render_map(max_col * 5, max_row * 5)
         self.initialise_map_grid(max_col, max_row, MAP_HEX_SIZE, level)
 
-        # TODO: find province type of each province and get colour from
-        #       config file to paint hex.
+        # TODO: put colour into config file
+        known_terrains = {
+            'mountain': ['#bbbbbb', '#d9d9d9'],
+            'forest': ['#007e00', '#7DAF7D'],
+            'swamp': ['#6fa000', '#C3D39D'],
+            'desert': ['#ffc100', '#E8D69D'],
+            'jungle': ['#60C118', '#94BB76'],
+            'tundra': ['#57DFB8', '#A0D8C8'],
+            'plain': ['#C2FF2D', '#D5ED9A'],
+            'hill': ['#AD6E00', '#D7AA5B'],
+            'ocean': ['#093AFF', '#A0B3FF']
+        }
+        visited_coords = []
+        seen_provinces = {}
         for coords in provinces.keys():
+            visited_coords.append(coords)
+            province_datas = provinces[coords]
+            province_datas_keys = list(province_datas.keys())
+            first_province_data = province_datas[province_datas_keys[0]]
+
             tags = coords.replace(', ', '_')
-            self.win_map_canvas.itemconfigure(tags, fill="#53ca53")
+            current_terrain = first_province_data[REPORT_REGION_TERRAIN_TOKEN]
+            if current_terrain in known_terrains.keys():
+                self.win_map_canvas.itemconfigure(tags, fill=known_terrains[current_terrain][0])
+            else:
+                logging.info(f'unknown terrain type "{current_terrain}"')
+                self.win_map_canvas.itemconfigure(tags, fill="#FFFFFF")
+            region_exits = first_province_data[REPORT_REGION_EXITS_TOKEN]
+            for region_exit in region_exits.values():
+                exit_terrain = region_exit[REPORT_REGION_EXIT_TERRAIN_TOKEN]
+                exit_coords = region_exit[REPORT_REGION_EXIT_COORDS_TOKEN]
+                x_coord = exit_coords[0]
+                y_coord = exit_coords[1]
+                z_coord = level
+                seen_provinces[f'{x_coord}, {y_coord}, {z_coord}'] = exit_terrain
 
         # TODO: find known provinces (waypoints from visited provinces) and mark on map
         #       paint respective hexes with secondary colour (lighter version of province
         #       type colour from config.
+        only_seen_provinces = {}
+        for seen_province_coords in seen_provinces.keys():
+            if seen_province_coords not in visited_coords:
+                only_seen_provinces[seen_province_coords] = seen_provinces[seen_province_coords]
+
+        for only_seen_province_coord in only_seen_provinces.keys():
+            only_seen_tags = only_seen_province_coord.replace(', ', '_')
+            only_seen_terrain = only_seen_provinces[only_seen_province_coord]
+
+            if USE_ONLY_SEEN_MAP_COLOUR:
+                map_colour = known_terrains[only_seen_terrain][1]
+            else:
+                map_colour = known_terrains[only_seen_terrain][0]
+
+            if only_seen_terrain in known_terrains.keys():
+                self.win_map_canvas.itemconfigure(only_seen_tags, fill=map_colour)
+            else:
+                logging.info(f'unknown terrain type "{only_seen_terrain}"')
+                self.win_map_canvas.itemconfigure(only_seen_tags, fill="#7C7C7C")
+
+
+
 
     def initialise_map_grid(self, max_column, max_row, hex_side_size, level):
         self.province_hexagons = []
