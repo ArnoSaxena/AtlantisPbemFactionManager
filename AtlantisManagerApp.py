@@ -1,9 +1,10 @@
 import json
 import os
 import logging
+from json import JSONDecodeError
 
 from tkinter import *
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from tkinter.ttk import *
 from math import sqrt
 
@@ -17,39 +18,21 @@ DATA_TOKEN_PLAYER_FACTION_NAME = 'player_faction_name'
 REPORT_FACTION_TOKEN = 'faction'
 REPORT_REGIONS_TOKEN = 'regions'
 REPORT_REGION_TERRAIN_TOKEN = 'terrain'
+REPORT_REGION_LOCATION_TOKEN = 'location'
 REPORT_REGION_EXITS_TOKEN = 'exits'
 REPORT_REGION_EXIT_TERRAIN_TOKEN = 'terrain'
 REPORT_REGION_EXIT_COORDS_TOKEN = 'location'
 
-MAX_MAP_LEVEL = 2
 MAP_HEXSIDE_SIZE = 25
 USE_ONLY_SEEN_MAP_COLOUR = False
 
 
-def get_max_col(provinces):
-    max_col = 0
-    for province_datas in provinces.values():
-        keys = list(province_datas.keys())
-        province_data = province_datas[keys[0]]
-        coords = province_data['location']
-        if int(coords[0]) > max_col:
-            max_col = int(coords[0])
-    return max_col
-
-
-def get_max_row(provinces):
-    max_row = 0
-    for province_datas in provinces.values():
-        keys = list(province_datas.keys())
-        province_data = province_datas[keys[0]]
-        coords = province_data['location']
-        if int(coords[1]) > max_row:
-            max_row = int(coords[0])
-    return max_row
-
-
 class AtlantisManager:
     def __init__(self):
+        self.max_map_level = 0
+        self.shown_map_level = 0
+
+        self.map_level_button = None
         self.province_hexagons = None
         self.map_frame = None
         self.win_map_canvas = None
@@ -122,6 +105,38 @@ class AtlantisManager:
 
     def app_mainloop(self):
         self.app_window_root.mainloop()
+
+    @staticmethod
+    def get_max_col(provinces):
+        max_col = 0
+        for province_datas in provinces.values():
+            keys = list(province_datas.keys())
+            province_data = province_datas[keys[0]]
+            coords = province_data['location']
+            if int(coords[0]) > max_col:
+                max_col = int(coords[0])
+            if REPORT_REGION_EXITS_TOKEN in province_data.keys():
+                for province_exit_key in province_data[REPORT_REGION_EXITS_TOKEN].keys():
+                    seen_coords = province_data[REPORT_REGION_EXITS_TOKEN][province_exit_key]['location']
+                    if int(seen_coords[0]) > max_col:
+                        max_col = int(seen_coords[0])
+        return max_col
+
+    @staticmethod
+    def get_max_row(provinces):
+        max_row = 0
+        for province_datas in provinces.values():
+            keys = list(province_datas.keys())
+            province_data = province_datas[keys[0]]
+            coords = province_data['location']
+            if int(coords[1]) > max_row:
+                max_row = int(coords[0])
+            if REPORT_REGION_EXITS_TOKEN in province_data.keys():
+                for province_exit_key in province_data[REPORT_REGION_EXITS_TOKEN].keys():
+                    seen_coords = province_data[REPORT_REGION_EXITS_TOKEN][province_exit_key]['location']
+                    if int(seen_coords[1]) > max_row:
+                        max_row = int(seen_coords[0])
+        return max_row
 
     def get_report_dictionary(self):
         if DATA_TOKEN_REPORTS in self.game_data.keys():
@@ -427,6 +442,12 @@ class AtlantisManager:
         frame_left = Frame(master=self.win_province_map_area, relief=GROOVE, borderwidth=5)
         self.map_frame = Frame(master=self.win_province_map_area, relief=GROOVE, borderwidth=5)
 
+        self.map_level_button = Button(
+            master=frame_left,
+            text=f"Level {self.shown_map_level}",
+            command=self.on_level_button_click
+        )
+
         self.win_region_map_text_box = Text(master=frame_left, wrap=WORD, width=30)
 
         self.render_map()
@@ -436,6 +457,7 @@ class AtlantisManager:
         frame_left.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
         self.map_frame.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
 
+        self.map_level_button.pack(side=TOP, fill=X)
         self.win_region_map_text_box.pack(side=LEFT, fill=BOTH, expand=True)
 
         parent_widget.add(self.win_province_map_area, text="Map")
@@ -459,12 +481,13 @@ class AtlantisManager:
         self.win_map_canvas.pack(side=TOP, fill=BOTH, expand=True)
         self.win_map_canvas.bind("<Button-1>", self.on_click_map_region)
 
-    def update_province_map(self, level):
-        provinces = self.get_all_provinces(level)
-        max_col = get_max_col(provinces)
-        max_row = get_max_row(provinces)
+    def update_province_map(self):
+        provinces = self.get_all_provinces(self.shown_map_level)
+        self.map_level_button.config(text=f"Level {self.shown_map_level}")
+        max_col = self.get_max_col(provinces)
+        max_row = self.get_max_row(provinces)
         self.render_map(max_col * 5, max_row * 5)
-        self.initialise_map_grid(max_col, max_row, MAP_HEXSIDE_SIZE, level)
+        self.initialise_map_grid(max_col, max_row, MAP_HEXSIDE_SIZE, self.shown_map_level)
 
         # TODO: put colour into config file
         known_terrains = {
@@ -476,7 +499,11 @@ class AtlantisManager:
             'tundra': ['#57DFB8', '#A0D8C8'],
             'plain': ['#C2FF2D', '#D5ED9A'],
             'hill': ['#AD6E00', '#D7AA5B'],
-            'ocean': ['#093AFF', '#A0B3FF']
+            'ocean': ['#093AFF', '#A0B3FF'],
+            'cavern': ['#AD6E00', '#D7AA5B'],
+            'tunnels': ['#bbbbbb', '#d9d9d9'],
+            'underforest': ['#007e00', '#7DAF7D'],
+            'nexus': ['#AD6E00', '#D7AA5B']
         }
         visited_coords = []
         seen_provinces = {}
@@ -497,13 +524,18 @@ class AtlantisManager:
             else:
                 logging.info(f'unknown terrain type "{current_terrain}"')
                 self.win_map_canvas.itemconfigure(tags, fill="#FFFFFF")
-            region_exits = first_province_data[REPORT_REGION_EXITS_TOKEN]
+
+            if REPORT_REGION_EXITS_TOKEN in first_province_data.keys():
+                region_exits = first_province_data[REPORT_REGION_EXITS_TOKEN]
+            else:
+                region_exits = {}
+
             for region_exit in region_exits.values():
                 exit_terrain = region_exit[REPORT_REGION_EXIT_TERRAIN_TOKEN]
                 exit_coords = region_exit[REPORT_REGION_EXIT_COORDS_TOKEN]
                 x_coord = exit_coords[0]
                 y_coord = exit_coords[1]
-                z_coord = level
+                z_coord = self.shown_map_level
                 seen_provinces[f'{x_coord}, {y_coord}, {z_coord}'] = exit_terrain
 
         # TODO: find known provinces (waypoints from visited provinces) and mark on map
@@ -578,9 +610,9 @@ class AtlantisManager:
         nearest_hex = None
 
         for province_hex in self.province_hexagons:
-            delta_x_sq = (province_hex.center_x - canvas_x)**2
-            delta_y_sq = (province_hex.center_y - canvas_y)**2
-            distance = sqrt(delta_x_sq+delta_y_sq)
+            delta_x_sq = (province_hex.center_x - canvas_x) ** 2
+            delta_y_sq = (province_hex.center_y - canvas_y) ** 2
+            distance = sqrt(delta_x_sq + delta_y_sq)
             if smallest_distance == distance:
                 return
             elif smallest_distance > distance:
@@ -592,6 +624,14 @@ class AtlantisManager:
 
         description = nearest_hex.tags + "\n" + str(nearest_hex.report)
         self.win_region_map_text_box.insert(END, description)
+
+    def on_level_button_click(self):
+        if self.shown_map_level < self.max_map_level:
+            self.shown_map_level = self.shown_map_level + 1
+        else:
+            self.shown_map_level = 0
+        self.map_level_button.config(text=f"Level {self.shown_map_level}")
+        self.update_province_map()
 
     def display_player_info(self):
         pass
@@ -613,12 +653,21 @@ class AtlantisManager:
 
         report_file_paths = filedialog.askopenfilenames()
 
+        report_loaded = False
         for report_file_path in report_file_paths:
             with open(report_file_path) as report_file_handle:
                 report_file_content = report_file_handle.read()
             report_file_content = report_file_content.replace("\"\\", "\"")
-            report_data = json.loads(report_file_content)
+            try:
+                report_data = json.loads(report_file_content)
+            except JSONDecodeError:
+                messagebox.showwarning(
+                    title='Not Json format',
+                    message=f'file {report_file_path} is not in json format.')
+                continue
+
             time_key = self.add_report(report_data)
+            report_loaded = True
 
             faction_number = int(report_data['faction']['number'])
             report_month_name = report_data['date']['month']
@@ -628,22 +677,38 @@ class AtlantisManager:
             self.player_info_area.insert(END, f'Player number {faction_number}\n'
                                               f'Report for {report_month_name} in year {report_year}\n'
                                               f'report data key: {time_key}')
+        if report_loaded:
+            self.max_map_level = self.get_max_map_level()
+            if self.max_map_level >= 1:
+                self.shown_map_level = 1
+            else:
+                self.max_map_level = self.max_map_level
+            self.update_skill_catalogue_list()
+            self.update_item_catalogue_list()
+            self.update_province_list()
+            self.update_province_map()
 
-        self.update_skill_catalogue_list()
-        self.update_item_catalogue_list()
-        self.update_province_list()
-        self.update_province_map(level=1)
+            # first report sets player number
+            # TODO: settings pane to change current player number
+            if -1 == self.game_data[DATA_TOKEN_PLAYER_NUMBER]:
+                self.game_data[DATA_TOKEN_PLAYER_NUMBER] = faction_number
+                self.game_data[DATA_TOKEN_PLAYER_FACTION_NAME] = report_data['faction']['name']
+                logging.info(f'Main faction set to '
+                             f'{self.game_data[DATA_TOKEN_PLAYER_FACTION_NAME]} '
+                             f'({self.game_data[DATA_TOKEN_PLAYER_NUMBER]})')
 
-        # first report sets player number
-        # TODO: settings pane to change current player number
-        if -1 == self.game_data[DATA_TOKEN_PLAYER_NUMBER]:
-            self.game_data[DATA_TOKEN_PLAYER_NUMBER] = faction_number
-            self.game_data[DATA_TOKEN_PLAYER_FACTION_NAME] = report_data['faction']['name']
-            logging.info(f'Main faction set to '
-                         f'{self.game_data[DATA_TOKEN_PLAYER_FACTION_NAME]} '
-                         f'({self.game_data[DATA_TOKEN_PLAYER_NUMBER]})')
+            logging.info('--- reports loaded ---')
+        else:
+            logging.info('--- no report loaded! ---')
 
-        logging.info('--- report loaded ---')
+    def get_max_map_level(self):
+        max_z = 0
+        province_coords = self.get_all_provinces().keys()
+        for province_coord in province_coords:
+            coords = province_coord.split(', ')
+            if int(coords[2]) > max_z:
+                max_z = int(coords[2])
+        return max_z
 
     def check_for_changes(self):
         pass
