@@ -11,7 +11,8 @@ def test_initialise_region():
 
     assert sud.coords == (test_x_coord, test_y_coord, test_z_coord)
     assert sud.region_type == test_region
-    assert sud.reports == {}
+    assert isinstance(sud.reports, dict)
+    assert len(sud.reports) == 0
 
 
 def test_region_get_key():
@@ -39,96 +40,92 @@ def test_region_get_key_from_coordinates():
     assert actual == test_key
 
 
-def test_add_report():
-    test_data = {
-        'faction':
-            {
-                'number': 42
-            },
-        'date':
-            {
-                'month': 'April',
-                'year': 7
-            }
-    }
-    test_report_key = '42_4_7'
+def test_add_region_report():
+    test_faction_number = 42
+    test_time_key = '2_1'
+    test_region_report = {
+                'location': [5, 4, 3],
+                'terrain': 'foobar',
+                'foo': 'bar'
+        }
 
-    test_x_coord = 5
-    test_y_coord = 42
-    test_z_coord = 23
-    test_region = 'foobar'
+    region_report_key = f'{test_faction_number}_{test_time_key}'
 
-    sud = Region(test_x_coord, test_y_coord, test_z_coord, test_region)
-    sud.add_report(test_data)
+    sud = Region(5, 4, 3, 'foobar')
+    sud.add_region_report(test_faction_number, test_time_key, test_region_report)
 
     assert len(sud.reports) == 1
-    assert test_report_key in sud.reports.keys()
-    assert sud.reports[test_report_key] == test_data
+    assert region_report_key in sud.reports.keys()
+    assert sud.reports[region_report_key] == test_region_report
 
 
-def test_merge_reports_different_report_data():
-    test_data_01 = {
-        'faction': {'number': 42},
-        'date': {
-                'month': 'April',
-                'year': 7
-        }
-    }
-    test_report_key_01 = '42_4_7'
-
-    test_data_02 = {
-        'faction': {'number': 42},
-        'date': {
-            'month': 'February',
-            'year': 7
-        }
-    }
-    test_report_key_02 = '42_2_7'
-
+def test_merge_reports_different_date_report_data():
+    test_faction_number = 42
     test_x_coord = 5
-    test_y_coord = 42
-    test_z_coord = 23
+    test_y_coord = 4
+    test_z_coord = 1
     test_region = 'foobar'
+    test_region_report_01 = {
+        'location': [test_x_coord, test_y_coord],
+        'terrain': test_region,
+        'foo': 'bar'
+    }
+    test_region_report_02 = {
+        'location': [test_x_coord, test_y_coord],
+        'terrain': test_region,
+        'bar': 'foo'
+    }
+
+    test_time_01 = '4_7'
+    test_time_02 = '2_7'
 
     test_region = Region(test_x_coord, test_y_coord, test_z_coord, test_region)
-    test_region.add_report(test_data_01)
+    test_region.add_region_report(test_faction_number, test_time_01, test_region_report_01)
 
     sud = Region(test_x_coord, test_y_coord, test_z_coord, test_region)
-    sud.add_report(test_data_02)
+    sud.add_region_report(test_faction_number, test_time_02, test_region_report_02)
 
     sud.merge_reports(test_region)
 
+    report_dict_key_01 = f'{test_faction_number}_{test_time_01}'
+    report_dict_key_02 = f'{test_faction_number}_{test_time_02}'
+
     assert len(sud.reports) == 2
-    assert test_report_key_01 in sud.reports.keys()
-    assert test_report_key_02 in sud.reports.keys()
-    assert sud.reports[test_report_key_01] == test_data_01
-    assert sud.reports[test_report_key_02] == test_data_02
+    assert report_dict_key_01 in sud.reports.keys()
+    assert report_dict_key_02 in sud.reports.keys()
+    assert sud.reports[report_dict_key_01] == test_region_report_01
+    assert sud.reports[report_dict_key_02] == test_region_report_02
 
 
 def test_merge_reports_same_report_data():
-    test_data = {
-        'faction': {'number': 42},
-        'date': {
-                'month': 'April',
-                'year': 7
-        }
-    }
-    test_report_key = f'42_4_7'
-
+    test_faction_number = 42
     test_x_coord = 5
-    test_y_coord = 42
-    test_z_coord = 23
+    test_y_coord = 4
+    test_z_coord = 1
     test_region = 'foobar'
+    test_region_report_01 = {
+        'location': [test_x_coord, test_y_coord],
+        'terrain': test_region,
+        'foo': 'bar'
+    }
+    test_region_report_02 = {
+        'location': [test_x_coord, test_y_coord],
+        'terrain': test_region,
+        'bar': 'foo'
+    }
+
+    test_time_key = '4_7'
+    report_dict_key = f'{test_faction_number}_{test_time_key}'
 
     test_region = Region(test_x_coord, test_y_coord, test_z_coord, test_region)
-    test_region.add_report(test_data)
+    test_region.add_region_report(test_faction_number, test_time_key, test_region_report_02)
 
     sud = Region(test_x_coord, test_y_coord, test_z_coord, test_region)
-    sud.add_report(test_data)
+    sud.add_region_report(test_faction_number, test_time_key, test_region_report_01)
 
     sud.merge_reports(test_region)
 
     assert len(sud.reports) == 1
-    assert test_report_key in sud.reports.keys()
-    assert sud.reports[test_report_key] == test_data
+    assert report_dict_key in sud.reports.keys()
+    assert sud.reports[report_dict_key] == test_region_report_01
 

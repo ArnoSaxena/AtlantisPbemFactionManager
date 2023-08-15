@@ -19,12 +19,7 @@ class Region:
     def get_key_from_coordinates(x: int, y: int, z: int):
         return f'{x}_{y}_{z}'
 
-    def add_report(self, report_data):
-        faction_number = int(report_data['faction']['number'])
-        report_month_name = report_data['date']['month']
-        report_month_enum = Month[report_month_name.strip()]
-        report_year = int(report_data['date']['year'])
-        time_key = Month.get_time_key(report_month_enum, report_year)
+    def add_region_report(self, faction_number, time_key, report_data):
         report_dict_key = f'{faction_number}_{time_key}'
         self.reports[report_dict_key] = report_data
 
