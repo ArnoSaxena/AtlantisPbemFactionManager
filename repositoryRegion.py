@@ -1,6 +1,8 @@
-from AtlantisManagerApp import REPORT_REGIONS_TOKEN, REPORT_REGION_TERRAIN_TOKEN
 from data.region import Region
 from month import Month
+
+REPORT_REGIONS_TOKEN = 'regions'
+REPORT_REGION_TERRAIN_TOKEN = 'terrain'
 
 
 class RepositoryRegion:
@@ -14,7 +16,9 @@ class RepositoryRegion:
         return False
 
     def get_region(self, x, y, z) -> Region:
-        region_key = Region.get_key_from_coordinates(x, y, z)
+        return self.get_region_by_key(Region.get_key_from_coordinates(x, y, z))
+
+    def get_region_by_key(self, region_key):
         if region_key in self.regions.keys():
             return self.regions[region_key]
         else:

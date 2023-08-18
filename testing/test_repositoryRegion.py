@@ -80,6 +80,48 @@ def test_repositoryRegion_get_not_existing_region():
     assert actual is None
 
 
+def test_repositoryRegion_get_by_key_existing_region():
+    test_coord_x_01 = 5
+    test_coord_y_01 = 6
+    test_coord_z_01 = 7
+    test_region_key_01 = f'{test_coord_x_01}_{test_coord_y_01}_{test_coord_z_01}'
+
+    test_coord_x_02 = 8
+    test_coord_y_02 = 9
+    test_coord_z_02 = 10
+    test_region_key_02 = f'{test_coord_x_02}_{test_coord_y_02}_{test_coord_z_02}'
+
+    test_region_01 = Region(test_coord_x_01, test_coord_y_01, test_coord_z_01, 'foobar')
+    test_region_02 = Region(test_coord_x_02, test_coord_y_02, test_coord_z_02, 'barfoo')
+
+    sud = RepositoryRegion()
+    sud.add_region(test_region_01)
+    sud.add_region(test_region_02)
+
+    actual_01 = sud.get_region_by_key(test_region_key_01)
+    actual_02 = sud.get_region_by_key(test_region_key_02)
+
+    assert isinstance(actual_01, Region)
+    assert actual_01 == test_region_01
+    assert isinstance(actual_02, Region)
+    assert actual_02 == test_region_02
+
+
+def test_repositoryRegion_get_by_key_not_existing_region():
+    test_region_01 = Region(5, 6, 7, 'foobar')
+    test_region_02 = Region(8, 9, 10, 'barfoo')
+
+    test_region_key = "11_12_13"
+
+    sud = RepositoryRegion()
+    sud.add_region(test_region_01)
+    sud.add_region(test_region_02)
+
+    actual = sud.get_region_by_key(test_region_key)
+
+    assert actual is None
+
+
 def test_repositoryRegion_load_regions_from_report_data():
     test_region_report_01 = {
                 'location': [5, 4, 3],

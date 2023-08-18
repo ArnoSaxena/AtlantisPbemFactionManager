@@ -129,3 +129,75 @@ def test_merge_reports_same_report_data():
     assert report_dict_key in sud.reports.keys()
     assert sud.reports[report_dict_key] == test_region_report_01
 
+
+def test_get_latest_report_no_given_faction():
+    test_faction_number = 42
+    test_x_coord = 5
+    test_y_coord = 4
+    test_z_coord = 1
+    test_region = 'foobar'
+    test_region_report_01 = {
+        'location': [test_x_coord, test_y_coord],
+        'terrain': test_region,
+        'foo': 'bar'
+    }
+    test_region_report_02 = {
+        'location': [test_x_coord, test_y_coord],
+        'terrain': test_region,
+        'bar': 'foo'
+    }
+
+    test_time_01 = '4_7'
+    test_time_02 = '2_7'
+
+    sud = Region(test_x_coord, test_y_coord, test_z_coord, test_region)
+    sud.add_region_report(test_faction_number, test_time_01, test_region_report_01)
+    sud.add_region_report(test_faction_number, test_time_02, test_region_report_02)
+
+    actual = sud.get_latest_report()
+
+    assert 'foo' in actual.keys()
+    assert actual['foo'] == 'bar'
+
+
+def test_get_latest_report_different_faction():
+    test_faction_number = 42
+    test_x_coord = 5
+    test_y_coord = 4
+    test_z_coord = 1
+    test_region = 'foobar'
+    test_region_report_01 = {
+        'location': [test_x_coord, test_y_coord],
+        'terrain': test_region,
+        'foo': 'bar'
+    }
+    test_region_report_02 = {
+        'location': [test_x_coord, test_y_coord],
+        'terrain': test_region,
+        'bar': 'foo'
+    }
+
+    test_time_01 = '4_7'
+    test_time_02 = '2_7'
+
+    sud = Region(test_x_coord, test_y_coord, test_z_coord, test_region)
+    sud.add_region_report(test_faction_number, test_time_01, test_region_report_01)
+    sud.add_region_report(test_faction_number, test_time_02, test_region_report_02)
+
+    actual = sud.get_latest_report(23)
+
+    assert actual is None
+
+
+def test_get_latest_report_no_reports():
+    test_x_coord = 5
+    test_y_coord = 4
+    test_z_coord = 1
+    test_region = 'foobar'
+
+    sud = Region(test_x_coord, test_y_coord, test_z_coord, test_region)
+
+    actual = sud.get_latest_report()
+
+    assert actual is None
+

@@ -42,7 +42,11 @@ class Month(Enum):
             return Month(int(result.group(1))), int(result.group(2))
 
     @staticmethod
-    def left_time_key_larger(left_time_key, right_time_key):
+    def left_time_key_younger(left_time_key, right_time_key):
+        if left_time_key is None:
+            return False
+        if right_time_key is None:
+            return True
         time_key_regex = r"^(\d*)_(\d*)$"
         left_result = re.search(time_key_regex, left_time_key)
         right_result = re.search(time_key_regex, right_time_key)

@@ -10,25 +10,22 @@ from math import sqrt
 
 from month import Month
 from provinceHexagon import ProvinceHexagon
+from repositoryRegion import RepositoryRegion
+from staticHelper import StaticHelper
 
 # TODO: put constants into config file
-DATA_TOKEN_REPORTS = 'reports'
-DATA_TOKEN_PLAYER_NUMBER = 'player_number'
-DATA_TOKEN_PLAYER_FACTION_NAME = 'player_faction_name'
-REPORT_FACTION_TOKEN = 'faction'
-REPORT_REGIONS_TOKEN = 'regions'
-REPORT_REGION_TERRAIN_TOKEN = 'terrain'
-REPORT_REGION_LOCATION_TOKEN = 'location'
-REPORT_REGION_EXITS_TOKEN = 'exits'
-REPORT_REGION_EXIT_TERRAIN_TOKEN = 'terrain'
-REPORT_REGION_EXIT_COORDS_TOKEN = 'location'
-
 MAP_HEXSIDE_SIZE = 25
 USE_ONLY_SEEN_MAP_COLOUR = False
 
 
 class AtlantisManager:
     def __init__(self):
+        logging.basicConfig(filename='atlantis_Manager.log',
+                            format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+                            datefmt='%d.%m.%Y:%H:%M:%S',
+                            filemode='w',
+                            level=logging.DEBUG)
+
         self.max_map_level = 0
         self.shown_map_level = 0
 
@@ -48,16 +45,14 @@ class AtlantisManager:
         self.win_skill_list_text_box = None
         self.win_skill_catalogue_area = None
 
-        logging.basicConfig(filename='atlantis_Manager.log',
-                            format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
-                            datefmt='%d.%m.%Y:%H:%M:%S',
-                            filemode='w',
-                            level=logging.DEBUG)
-
         self.game_data = {
-            DATA_TOKEN_PLAYER_NUMBER: -1,
-            DATA_TOKEN_PLAYER_FACTION_NAME: "",
-            DATA_TOKEN_REPORTS: {}
+            StaticHelper.DATA_TOKEN_PLAYER_NUMBER: -1,
+            StaticHelper.DATA_TOKEN_PLAYER_FACTION_NAME: "",
+            StaticHelper.DATA_TOKEN_REPORTS: {}
+        }
+
+        self.repositories = {
+            'regions': RepositoryRegion()
         }
 
         self.app_window_root = Tk()
@@ -106,52 +101,17 @@ class AtlantisManager:
     def app_mainloop(self):
         self.app_window_root.mainloop()
 
-    @staticmethod
-    def get_max_col(provinces):
-        max_col = 0
-        for province_datas in provinces.values():
-            keys = list(province_datas.keys())
-            province_data = province_datas[keys[0]]
-            coords = province_data['location']
-            if int(coords[0]) > max_col:
-                max_col = int(coords[0])
-            if REPORT_REGION_EXITS_TOKEN in province_data.keys():
-                for province_exit_key in province_data[REPORT_REGION_EXITS_TOKEN].keys():
-                    seen_coords = province_data[REPORT_REGION_EXITS_TOKEN][province_exit_key]['location']
-                    if int(seen_coords[0]) > max_col:
-                        max_col = int(seen_coords[0])
-        return max_col
-
-    @staticmethod
-    def get_max_row(provinces):
-        max_row = 0
-        for province_datas in provinces.values():
-            keys = list(province_datas.keys())
-            province_data = province_datas[keys[0]]
-            coords = province_data['location']
-            if int(coords[1]) > max_row:
-                max_row = int(coords[0])
-            if REPORT_REGION_EXITS_TOKEN in province_data.keys():
-                for province_exit_key in province_data[REPORT_REGION_EXITS_TOKEN].keys():
-                    seen_coords = province_data[REPORT_REGION_EXITS_TOKEN][province_exit_key]['location']
-                    if int(seen_coords[1]) > max_row:
-                        max_row = int(seen_coords[0])
-        return max_row
-
     def get_report_dictionary(self):
-        if DATA_TOKEN_REPORTS in self.game_data.keys():
-            return self.game_data[DATA_TOKEN_REPORTS]
+        if StaticHelper.DATA_TOKEN_REPORTS in self.game_data.keys():
+            return self.game_data[StaticHelper.DATA_TOKEN_REPORTS]
         else:
             return None
 
     def add_report(self, report_data):
         faction_number = int(report_data['faction']['number'])
-        report_month_name = report_data['date']['month']
-        report_month_enum = Month[report_month_name.strip()]
-        report_year = int(report_data['date']['year'])
-        time_key = Month.get_time_key(report_month_enum, report_year)
+        time_key = StaticHelper.get_time_key_from_report_data(report_data)
         report_dict_key = f'{faction_number}_{time_key}'
-        self.game_data[DATA_TOKEN_REPORTS][report_dict_key] = report_data
+        self.game_data[StaticHelper.DATA_TOKEN_REPORTS][report_dict_key] = report_data
         return report_dict_key
 
     def import_data(self):
@@ -228,7 +188,7 @@ class AtlantisManager:
 
     def get_all_skills(self):
         all_skill_reports = {}
-        report_dict = self.game_data[DATA_TOKEN_REPORTS]
+        report_dict = self.game_data[StaticHelper.DATA_TOKEN_REPORTS]
         for value in report_dict.values():
             if 'skillReports' in value.keys():
                 skill_reports = value['skillReports']
@@ -299,7 +259,7 @@ class AtlantisManager:
 
     def get_all_items(self):
         all_item_reports = {}
-        report_dict = self.game_data[DATA_TOKEN_REPORTS]
+        report_dict = self.game_data[StaticHelper.DATA_TOKEN_REPORTS]
         for value in report_dict.values():
             if 'itemReports' in value.keys():
                 item_reports = value['itemReports']
@@ -379,13 +339,13 @@ class AtlantisManager:
                     current_player_number = player_number
                     logging.info(f'add report {current_time_key}')
                 else:
-                    if Month.left_time_key_larger(time_key, current_time_key):
+                    if Month.left_time_key_younger(time_key, current_time_key):
                         show_description = all_descriptions[key]
                         logging.info(f'overwrite report {current_time_key} with {time_key}')
                         current_time_key = time_key
                         current_player_number = player_number
                     elif time_key == current_time_key:
-                        if player_number.strip() == str(self.game_data[DATA_TOKEN_PLAYER_NUMBER]):
+                        if player_number.strip() == str(self.game_data[StaticHelper.DATA_TOKEN_PLAYER_NUMBER]):
                             show_description = all_descriptions[key]
                             current_time_key = time_key
                             current_player_number = player_number
@@ -403,10 +363,10 @@ class AtlantisManager:
 
     def get_all_provinces(self, level=-1):
         all_province_reports = {}
-        report_dict = self.game_data[DATA_TOKEN_REPORTS]
+        report_dict = self.game_data[StaticHelper.DATA_TOKEN_REPORTS]
         for report_data in report_dict.values():
-            if REPORT_REGIONS_TOKEN in report_data.keys():
-                province_reports = report_data[REPORT_REGIONS_TOKEN]
+            if StaticHelper.REPORT_REGIONS_TOKEN in report_data.keys():
+                province_reports = report_data[StaticHelper.REPORT_REGIONS_TOKEN]
                 for province_report in province_reports:
                     if 'location' in province_report.keys():
                         coords = province_report['location']
@@ -484,8 +444,8 @@ class AtlantisManager:
     def update_province_map(self):
         provinces = self.get_all_provinces(self.shown_map_level)
         self.map_level_button.config(text=f"Level {self.shown_map_level}")
-        max_col = self.get_max_col(provinces)
-        max_row = self.get_max_row(provinces)
+        max_col = StaticHelper.get_max_col(provinces)
+        max_row = StaticHelper.get_max_row(provinces)
         self.render_map(max_col * 5, max_row * 5)
         self.initialise_map_grid(max_col, max_row, MAP_HEXSIDE_SIZE, self.shown_map_level)
 
@@ -514,7 +474,7 @@ class AtlantisManager:
             first_province_data = province_datas[province_datas_keys[0]]
 
             tags = coords.replace(', ', '_')
-            current_terrain = first_province_data[REPORT_REGION_TERRAIN_TOKEN]
+            current_terrain = first_province_data[StaticHelper.REPORT_REGION_TERRAIN_TOKEN]
             if current_terrain in known_terrains.keys():
                 self.win_map_canvas.itemconfigure(tags, fill=known_terrains[current_terrain][0])
                 for province_hex in self.province_hexagons:
@@ -525,14 +485,14 @@ class AtlantisManager:
                 logging.info(f'unknown terrain type "{current_terrain}"')
                 self.win_map_canvas.itemconfigure(tags, fill="#FFFFFF")
 
-            if REPORT_REGION_EXITS_TOKEN in first_province_data.keys():
-                region_exits = first_province_data[REPORT_REGION_EXITS_TOKEN]
+            if StaticHelper.REPORT_REGION_EXITS_TOKEN in first_province_data.keys():
+                region_exits = first_province_data[StaticHelper.REPORT_REGION_EXITS_TOKEN]
             else:
                 region_exits = {}
 
             for region_exit in region_exits.values():
-                exit_terrain = region_exit[REPORT_REGION_EXIT_TERRAIN_TOKEN]
-                exit_coords = region_exit[REPORT_REGION_EXIT_COORDS_TOKEN]
+                exit_terrain = region_exit[StaticHelper.REPORT_REGION_EXIT_TERRAIN_TOKEN]
+                exit_coords = region_exit[StaticHelper.REPORT_REGION_EXIT_COORDS_TOKEN]
                 x_coord = exit_coords[0]
                 y_coord = exit_coords[1]
                 z_coord = self.shown_map_level
@@ -619,11 +579,24 @@ class AtlantisManager:
                 smallest_distance = distance
                 nearest_hex = province_hex
 
+        # initialise region description
         self.win_region_map_text_box.delete("0.0", END)
-        self.win_region_map_text_box.insert(END, f'canvas click: {canvas_x},{canvas_y}\n')
 
-        description = nearest_hex.tags + "\n" + str(nearest_hex.report)
-        self.win_region_map_text_box.insert(END, description)
+        # fill region description
+        self.win_region_map_text_box.insert(END, f'canvas click: {canvas_x},{canvas_y}\n')
+        self.win_region_map_text_box.insert(END, nearest_hex.tags + "\n")
+
+        # TODO: use available reports to fill in region description
+        region = self.repositories['regions'].get_region_by_key(nearest_hex.tags)
+        if None is not region:
+            self.win_region_map_text_box.insert(END, str(region.coords) + "\n")
+            self.win_region_map_text_box.insert(END, str(region.region_type) + "\n")
+            latest_region_report = region.get_latest_report()
+            if None is not latest_region_report:
+                self.win_region_map_text_box.insert(END, str(latest_region_report['province']) + "\n")
+            self.win_region_map_text_box.insert(END, str(region.get_latest_report()) + "\n")
+        else:
+            self.win_region_map_text_box.insert(END, "No region report available\n")
 
     def on_level_button_click(self):
         if self.shown_map_level < self.max_map_level:
@@ -666,6 +639,9 @@ class AtlantisManager:
                     message=f'file {report_file_path} is not in json format.')
                 continue
 
+            # fill repositories with report_data
+            self.repositories['regions'].load_regions_from_report_data(report_data)
+
             time_key = self.add_report(report_data)
             report_loaded = True
 
@@ -690,12 +666,12 @@ class AtlantisManager:
 
             # first report sets player number
             # TODO: settings pane to change current player number
-            if -1 == self.game_data[DATA_TOKEN_PLAYER_NUMBER]:
-                self.game_data[DATA_TOKEN_PLAYER_NUMBER] = faction_number
-                self.game_data[DATA_TOKEN_PLAYER_FACTION_NAME] = report_data['faction']['name']
+            if -1 == self.game_data[StaticHelper.DATA_TOKEN_PLAYER_NUMBER]:
+                self.game_data[StaticHelper.DATA_TOKEN_PLAYER_NUMBER] = faction_number
+                self.game_data[StaticHelper.DATA_TOKEN_PLAYER_FACTION_NAME] = report_data['faction']['name']
                 logging.info(f'Main faction set to '
-                             f'{self.game_data[DATA_TOKEN_PLAYER_FACTION_NAME]} '
-                             f'({self.game_data[DATA_TOKEN_PLAYER_NUMBER]})')
+                             f'{self.game_data[StaticHelper.DATA_TOKEN_PLAYER_FACTION_NAME]} '
+                             f'({self.game_data[StaticHelper.DATA_TOKEN_PLAYER_NUMBER]})')
 
             logging.info('--- reports loaded ---')
         else:

@@ -54,11 +54,14 @@ def test_get_time_key():
 
 
 def test_left_time_key_larger_left():
-    assert Month.left_time_key_larger("3_12", "10_9") is True
-    assert Month.left_time_key_larger("12_10", "3_10") is True
-    assert Month.left_time_key_larger("12_12", "3_15") is not True
-    assert Month.left_time_key_larger("6_8", "7_8") is not True
-    assert Month.left_time_key_larger("6_8", "6_8") is not True
+    assert Month.left_time_key_younger("3_12", "10_9") is True
+    assert Month.left_time_key_younger("12_10", "3_10") is True
+    assert Month.left_time_key_younger("12_12", "3_15") is not True
+    assert Month.left_time_key_younger("6_8", "7_8") is not True
+    assert Month.left_time_key_younger("6_8", "6_8") is not True
+    assert Month.left_time_key_younger("6_8", None) is True
+    assert Month.left_time_key_younger(None, "6_8") is not True
+    assert Month.left_time_key_younger(None, None) is not True
 
 
 def test_get_month_and_year():
