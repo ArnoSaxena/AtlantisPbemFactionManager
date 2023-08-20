@@ -9,7 +9,7 @@ from tkinter.ttk import *
 from math import sqrt
 
 from month import Month
-from provinceHexagon import ProvinceHexagon
+from regionHexagon import RegionHexagon
 from repositoryRegion import RepositoryRegion
 from staticHelper import StaticHelper
 
@@ -85,7 +85,7 @@ class AtlantisManager:
 
         self.render_skill_catalogue(self.app_notebook)
         self.render_item_catalogue(self.app_notebook)
-        self.render_province_catalogue(self.app_notebook)
+        self.render_region_catalogue(self.app_notebook)
         self.render_map_tab(self.app_notebook)
 
         # Object Catalogue
@@ -113,20 +113,6 @@ class AtlantisManager:
         report_dict_key = f'{faction_number}_{time_key}'
         self.game_data[StaticHelper.DATA_TOKEN_REPORTS][report_dict_key] = report_data
         return report_dict_key
-
-    def import_data(self):
-        data_file_path = filedialog.askopenfilename()
-        try:
-            with open(data_file_path, "r") as data_file_handle:
-                self.game_data = json.loads(data_file_handle.read())
-
-                self.display_player_info()
-                self.update_skill_catalogue_list()
-                self.update_item_catalogue_list()
-
-        except (AttributeError, FileNotFoundError):
-            print("Open operation cancelled")
-            return
 
     # skill list
     def render_skill_catalogue(self, parent_widget):
@@ -216,7 +202,7 @@ class AtlantisManager:
 
         self.win_item_catalogue_list.bind(
             '<<ListboxSelect>>',
-            lambda event: self.on_item_listbox_select(event))
+            lambda event: self.on_item_catalogue_listbox_select(event))
 
         item_list_scrollbar = Scrollbar(frame_left)
         self.win_item_catalogue_list.config(yscrollcommand=item_list_scrollbar.set)
@@ -244,7 +230,7 @@ class AtlantisManager:
         for item_name in item_list.keys():
             self.win_item_catalogue_list.insert(END, item_name)
 
-    def on_item_listbox_select(self, list_select_event):
+    def on_item_catalogue_listbox_select(self, list_select_event):
         item_list = self.get_all_items()
 
         list_select_event_widget = list_select_event.widget
@@ -273,7 +259,7 @@ class AtlantisManager:
         return all_item_reports
 
     # province list
-    def render_province_catalogue(self, parent_widget):
+    def render_region_catalogue(self, parent_widget):
         self.win_region_list_area = Frame(parent_widget, relief=RIDGE, borderwidth=10)
 
         self.win_region_list_area.columnconfigure(1, weight=1)
@@ -286,11 +272,11 @@ class AtlantisManager:
 
         self.win_province_list = Listbox(frame_left, selectmode=SINGLE)
 
-        self.update_province_list()
+        self.update_region_list()
 
         self.win_province_list.bind(
             '<<ListboxSelect>>',
-            lambda event: self.on_province_listbox_select(event))
+            lambda event: self.on_region_catalogue_listbox_select(event))
 
         province_list_scrollbar = Scrollbar(frame_left)
         self.win_province_list.config(yscrollcommand=province_list_scrollbar.set)
@@ -307,9 +293,9 @@ class AtlantisManager:
 
         parent_widget.add(self.win_region_list_area, text="Regions")
 
-    def update_province_list(self):
+    def update_region_list(self):
         self.win_province_list.delete(0, END)
-        province_list = self.get_all_provinces()
+        province_list = self.get_all_regions()
 
         my_keys = list(province_list.keys())
         my_keys.sort()
@@ -318,8 +304,8 @@ class AtlantisManager:
         for province_coords in province_list.keys():
             self.win_province_list.insert(END, province_coords)
 
-    def on_province_listbox_select(self, list_select_event):
-        province_list = self.get_all_provinces()
+    def on_region_catalogue_listbox_select(self, list_select_event):
+        province_list = self.get_all_regions()
 
         list_select_event_widget = list_select_event.widget
 
@@ -361,7 +347,7 @@ class AtlantisManager:
         except IndexError:
             return
 
-    def get_all_provinces(self, level=-1):
+    def get_all_regions(self, level=-1):
         all_province_reports = {}
         report_dict = self.game_data[StaticHelper.DATA_TOKEN_REPORTS]
         for report_data in report_dict.values():
@@ -405,7 +391,7 @@ class AtlantisManager:
         self.map_level_button = Button(
             master=frame_left,
             text=f"Level {self.shown_map_level}",
-            command=self.on_level_button_click
+            command=self.on_map_level_button_click
         )
 
         self.win_region_map_text_box = Text(master=frame_left, wrap=WORD, width=30)
@@ -441,8 +427,8 @@ class AtlantisManager:
         self.win_map_canvas.pack(side=TOP, fill=BOTH, expand=True)
         self.win_map_canvas.bind("<Button-1>", self.on_click_map_region)
 
-    def update_province_map(self):
-        provinces = self.get_all_provinces(self.shown_map_level)
+    def update_region_map(self):
+        provinces = self.get_all_regions(self.shown_map_level)
         self.map_level_button.config(text=f"Level {self.shown_map_level}")
         max_col = StaticHelper.get_max_col(provinces)
         max_row = StaticHelper.get_max_row(provinces)
@@ -540,12 +526,12 @@ class AtlantisManager:
                 province_hex_center_x = column_index * (hex_side_size * 1.5)
                 province_hex_center_y = (row_index * (hex_side_size * sqrt(3))) + odd_column_offset
                 tags = f'{column_index}_{translated_row_index}_{level}'
-                province_hex = ProvinceHexagon(self.win_map_canvas,
-                                               province_hex_center_x,
-                                               province_hex_center_y,
-                                               hex_side_size,
+                province_hex = RegionHexagon(self.win_map_canvas,
+                                             province_hex_center_x,
+                                             province_hex_center_y,
+                                             hex_side_size,
                                                "white",
-                                               tags)
+                                             tags)
 
                 self.province_hexagons.append(province_hex)
                 """
@@ -583,28 +569,55 @@ class AtlantisManager:
         self.win_region_map_text_box.delete("0.0", END)
 
         # fill region description
-        self.win_region_map_text_box.insert(END, f'canvas click: {canvas_x},{canvas_y}\n')
-        self.win_region_map_text_box.insert(END, nearest_hex.tags + "\n")
+        # self.win_region_map_text_box.insert(END, f'canvas click: {canvas_x},{canvas_y}\n')
+        # self.win_region_map_text_box.insert(END, nearest_hex.tags + "\n")
 
         # TODO: use available reports to fill in region description
         region = self.repositories['regions'].get_region_by_key(nearest_hex.tags)
         if None is not region:
             self.win_region_map_text_box.insert(END, str(region.coords) + "\n")
-            self.win_region_map_text_box.insert(END, str(region.region_type) + "\n")
-            latest_region_report = region.get_latest_report()
-            if None is not latest_region_report:
-                self.win_region_map_text_box.insert(END, str(latest_region_report['province']) + "\n")
+            self.win_region_map_text_box.insert(END, f"terrain: {region.region_type}\n")
+
+            current_population = "-/-"
+            current_race = "Unknown"
+            if region.population != -1:
+                current_population = region.population
+            if region.race != "":
+                current_race = region.race
+            self.win_region_map_text_box.insert(END, f"Peasants: {current_population} {current_race}\n")
+
+            self.win_region_map_text_box.insert(END, f"Province: {region.province}\n")
+
+            current_tax = "-/-"
+            if region.tax != -1:
+                current_tax = region.tax
+            self.win_region_map_text_box.insert(END, f"Tax: {current_tax}\n")
+
+            current_total_wages = "-/-"
+            current_wages = "-/-"
+            if region.total_wages != -1:
+                current_total_wages = region.total_wages
+            if region.wages != -1:
+                current_wages = region.wages
+            self.win_region_map_text_box.insert(END, f"Wages: {current_total_wages} ({current_wages})\n")
+
+            current_entertainment = "-/-"
+            if region.entertainment != -1:
+                current_entertainment = region.entertainment
+            self.win_region_map_text_box.insert(END, f"Entertainment: {region.entertainment}\n")
+
+            self.win_region_map_text_box.insert(END, "--------------------\n")
             self.win_region_map_text_box.insert(END, str(region.get_latest_report()) + "\n")
         else:
             self.win_region_map_text_box.insert(END, "No region report available\n")
 
-    def on_level_button_click(self):
+    def on_map_level_button_click(self):
         if self.shown_map_level < self.max_map_level:
             self.shown_map_level = self.shown_map_level + 1
         else:
             self.shown_map_level = 0
         self.map_level_button.config(text=f"Level {self.shown_map_level}")
-        self.update_province_map()
+        self.update_region_map()
 
     def display_player_info(self):
         pass
@@ -612,13 +625,42 @@ class AtlantisManager:
     def save_data(self):
         file_path = filedialog.asksaveasfilename()
         try:
-            json_string = json.dumps(self.game_data, indent=2)
+
+            repository_region_json = self.repositories['regions'].get_json_dump()
+
+            json_lines = []
+
+            if len(self.game_data) > 0:
+                game_data_json = json.dumps(self.game_data, indent=2)
+                json_lines.append(f'"game_data":{game_data_json}')
+            json_lines.append(f'"repository_region":{repository_region_json}')
+
+            json_content = ','.join(json_lines)
+            json_data_string = f'{{ {json_content} }}'
+            json_tmp = json.loads(json_data_string)
+            json_string = json.dumps(json_tmp, indent=2)
 
             with open(file_path, 'w') as atlantis_data_file_handle:
                 atlantis_data_file_handle.write(json_string)
 
         except (AttributeError, FileNotFoundError):
             print("Save operation cancelled")
+            return
+
+    def import_data(self):
+        data_file_path = filedialog.askopenfilename()
+        try:
+            with open(data_file_path, "r") as data_file_handle:
+                import_json = json.loads(data_file_handle.read())
+                if 'game_data' in import_json.keys():
+                    self.game_data = import_json['game_data']
+                if 'repository_region' in import_json.keys():
+                    repository_region_data = import_json['repository_region']
+                    self.repositories['regions'].initialise_from_regions_dicts(repository_region_data)
+
+                self.initialise_data()
+        except (AttributeError, FileNotFoundError):
+            print("Open operation cancelled")
             return
 
     def load_reports(self):
@@ -649,21 +691,6 @@ class AtlantisManager:
             report_month_name = report_data['date']['month']
             report_year = int(report_data['date']['year'])
 
-            self.player_info_area.delete("0.0", END)
-            self.player_info_area.insert(END, f'Player number {faction_number}\n'
-                                              f'Report for {report_month_name} in year {report_year}\n'
-                                              f'report data key: {time_key}')
-        if report_loaded:
-            self.max_map_level = self.get_max_map_level()
-            if self.max_map_level >= 1:
-                self.shown_map_level = 1
-            else:
-                self.max_map_level = self.max_map_level
-            self.update_skill_catalogue_list()
-            self.update_item_catalogue_list()
-            self.update_province_list()
-            self.update_province_map()
-
             # first report sets player number
             # TODO: settings pane to change current player number
             if -1 == self.game_data[StaticHelper.DATA_TOKEN_PLAYER_NUMBER]:
@@ -673,13 +700,30 @@ class AtlantisManager:
                              f'{self.game_data[StaticHelper.DATA_TOKEN_PLAYER_FACTION_NAME]} '
                              f'({self.game_data[StaticHelper.DATA_TOKEN_PLAYER_NUMBER]})')
 
+            self.player_info_area.delete("0.0", END)
+            self.player_info_area.insert(END, f'Player number {self.game_data[StaticHelper.DATA_TOKEN_PLAYER_NUMBER]}\n')
+            self.player_info_area.insert(END, f'Faction name {self.game_data[StaticHelper.DATA_TOKEN_PLAYER_FACTION_NAME]}\n')
+            if report_loaded:
+                self.initialise_data()
+
             logging.info('--- reports loaded ---')
         else:
             logging.info('--- no report loaded! ---')
 
+    def initialise_data(self):
+        self.max_map_level = self.get_max_map_level()
+        if self.max_map_level >= 1:
+            self.shown_map_level = 1
+        else:
+            self.max_map_level = self.max_map_level
+        self.update_skill_catalogue_list()
+        self.update_item_catalogue_list()
+        self.update_region_list()
+        self.update_region_map()
+
     def get_max_map_level(self):
         max_z = 0
-        province_coords = self.get_all_provinces().keys()
+        province_coords = self.get_all_regions().keys()
         for province_coord in province_coords:
             coords = province_coord.split(', ')
             if int(coords[2]) > max_z:

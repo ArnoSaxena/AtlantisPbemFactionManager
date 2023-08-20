@@ -59,7 +59,7 @@ def test_add_region_report():
     assert sud.reports[region_report_key] == test_region_report
 
 
-def test_merge_reports_different_date_report_data():
+def test_merge_different_date_report_data():
     test_faction_number = 42
     test_x_coord = 5
     test_y_coord = 4
@@ -85,7 +85,7 @@ def test_merge_reports_different_date_report_data():
     sud = Region(test_x_coord, test_y_coord, test_z_coord, test_region)
     sud.add_region_report(test_faction_number, test_time_02, test_region_report_02)
 
-    sud.merge_reports(test_region)
+    sud.merge(test_region)
 
     report_dict_key_01 = f'{test_faction_number}_{test_time_01}'
     report_dict_key_02 = f'{test_faction_number}_{test_time_02}'
@@ -97,7 +97,7 @@ def test_merge_reports_different_date_report_data():
     assert sud.reports[report_dict_key_02] == test_region_report_02
 
 
-def test_merge_reports_same_report_data():
+def test_merge_same_report_data():
     test_faction_number = 42
     test_x_coord = 5
     test_y_coord = 4
@@ -123,7 +123,7 @@ def test_merge_reports_same_report_data():
     sud = Region(test_x_coord, test_y_coord, test_z_coord, test_region)
     sud.add_region_report(test_faction_number, test_time_key, test_region_report_01)
 
-    sud.merge_reports(test_region)
+    sud.merge(test_region)
 
     assert len(sud.reports) == 1
     assert report_dict_key in sud.reports.keys()
